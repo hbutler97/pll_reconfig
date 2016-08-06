@@ -1,7 +1,7 @@
 
 CC := $(CROSS_COMPILE)g++
 
-CFLAGS := -Itclap -march=armv7-a -mfloat-abi=hard -mfpu=vfp3 -mthumb-interwork -mthumb -Og -g -feliminate-unused-debug-types -W -Wall -Werror -Wwrite-strings -pedantic
+CFLAGS := -Itclap -march=armv7-a -mfloat-abi=hard -mfpu=vfp3 -mthumb-interwork -mthumb -Og -g -feliminate-unused-debug-types -W -Wall -Werror -Wwrite-strings -pedantic -std=c++11
 LDFLAGS=
 
 SOURCES=$(wildcard *.cpp)

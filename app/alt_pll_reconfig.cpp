@@ -73,11 +73,15 @@ int main(int argc, char** argv)
 
     if(!reconfig_interface->check_fout(output_frequency.getValue()*1000)) //add supported fouts
       throw TCLAP::ArgException("Invalided fout", output_frequency.getName());
+    reconfig_interface->set_fout(output_frequency.getValue() * 1000);
 
     if(!reconfig_interface->check_fref(input_frequency.getValue()*1000)) //add supported fins
       throw TCLAP::ArgException("Invalided fin", input_frequency.getName());
-    
-    
+    reconfig_interface->set_fref(input_frequency.getValue() * 1000);
+
+    if(!reconfig_interface->calculate_pll_parameters()) //add a proper exception
+      throw TCLAP::ArgException("***Howard add a proper exception", input_frequency.getName());
+    reconfig_interface->request_new_settings();
     //add unhandled exception
   } catch (TCLAP::ArgException &e)  // catch any exceptions
     { std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; exit(EXIT_FAILURE); }

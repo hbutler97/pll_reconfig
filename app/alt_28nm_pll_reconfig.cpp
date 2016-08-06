@@ -2,17 +2,84 @@
 #include <algorithm>
 #include <assert.h>
 #include "alt_28nm_pll_reconfig.h"
+#include <string>
+#include <unistd.h>
 
 
 
-alt_28nm_pll_reconfig::alt_28nm_pll_reconfig(void)
+
+alt_28nm_pll_reconfig::alt_28nm_pll_reconfig(void):
+  m_frequency_sys_file("/sys/bus/platform/drivers/dynamic_clock/frequency"),
+  m_parameters_sys_file("/sys/bus/platform/drivers/dynamic_clock/parameters"),
+  m_bandwidth(7),
+  m_vco_div(0),
+  m_c_pump(1)
 {
   init_family_list();
 }
 
-void alt_28nm_pll_reconfig::calculate_pll_parameters(unsigned int fref, unsigned int fout)
+bool alt_28nm_pll_reconfig::calculate_pll_parameters(void)
 {
-  std::cout <<"calculate_pll_parameters" << fref << fout << std::endl;
+  //add some protection to make sure all input has been validated
+  //double check on vco_div
+  bool status(false);
+  bool first_run(true);
+  unsigned int fref_calculated(0);
+  std::cout << "Finding Legal PLL parameters for:" << std::endl;
+  std::cout << "Device Family: " << m_family << std::endl;
+  std::cout << "Device Speed Grade: " << m_speed_grade << std::endl;
+  std::cout << "PLL Ref Clock Frequency: " << m_fref/1000 << " KHz" << std::endl;
+  std::cout << "Requested PLL Output Frequency: " << m_fout/1000 << " KHz" << std::endl;
+ 
+  for(unsigned int c = m_c_min; c <= m_c_max && !status; c++){
+    m_fvco = m_fout * c;
+    if(m_fvco >= m_fvco_min && m_fvco <= m_fvco_max){
+      for(unsigned int m = m_m_min; m <= m_m_max && !status; m++){
+	//got some integer devision here which could be a problem
+	m_fpfd = m_fvco/m;
+	if(m_fpfd >= m_fpfd_min && m_fpfd <= m_fpfd_max){
+	  for(unsigned int n = m_n_min; n < m_n_max && !status; n++){
+	    fref_calculated = m_fpfd * n;
+	    if(fref_calculated == m_fref){
+	      status = true;
+	      m_m_count = m;
+	      m_n_count = n;
+	      m_c_count = c;
+	    }
+	  }
+	}
+      }
+    }
+    //show some progress as this can take a long time for odd setups
+    if((c & 0x3F) == 0x3F){
+      if(first_run){
+	std::cout << "This could take awhile depending on your request" << std::endl << std::flush;
+	first_run = false;
+      }
+      std::cout << "=" << std::flush;
+    }
+  }
+  std::cout << std::endl;
+  if(status){
+    m_m_bypass = (m_m_count == 1)?true:false;
+    m_n_bypass = (m_n_count == 1)?true:false;
+    m_c_bypass = (m_c_count == 1)?true:false;
+    
+    m_m_odd = (m_m_count & 0x1)?true:false;
+    m_n_odd = (m_n_count & 0x1)?true:false;
+    m_c_odd = (m_c_count & 0x1)?true:false;
+
+    //divide counts by 2 for their high low register values
+    m_m_high = m_m_low = m_m_count >> 1;
+    m_c_high = m_c_low = m_c_count >> 1;
+    m_n_high = m_n_low = m_n_count >> 1;
+    //add 1 to the high registers if the count value is odd
+    m_m_high = (m_m_odd)?m_m_high + 1: m_m_high;
+    m_n_high = (m_n_odd)?m_n_high + 1: m_n_high;
+    m_c_high = (m_c_odd)?m_c_high + 1: m_c_high;
+	
+  }
+  return status;
 }
 
 alt_28nm_pll_reconfig::~alt_28nm_pll_reconfig(void)
@@ -30,6 +97,56 @@ std::string alt_28nm_pll_reconfig::get_supported_families_string(void)
   return return_string;
 }
 
+bool alt_28nm_pll_reconfig::request_new_settings(void)
+{
+  bool status(true);
+  std::string freq;
+  std::string calculated_parameters_string(std::to_string(m_m_high) + " " + std::to_string(m_m_low) + " " + std::to_string(m_m_bypass) + " " + std::to_string(m_m_odd)
+					   + " " + std::to_string(m_n_high) + " " + std::to_string(m_n_low) + " " + std::to_string(m_n_bypass) + " " + std::to_string(m_n_odd)
+					   + " " + std::to_string(m_c_high) + " " + std::to_string(m_c_low) + " " + std::to_string(m_c_bypass) + " " + std::to_string(m_c_odd)
+					   + " " + std::to_string(m_bandwidth) + " " + std::to_string(m_vco_div) + " " + std::to_string(m_c_pump));
+
+  if(sys_file_exist(m_frequency_sys_file) && sys_file_exist(m_parameters_sys_file)){
+    m_frequency_sys_stream.open(m_frequency_sys_file.c_str());
+    if(!m_frequency_sys_stream.is_open())
+      std::cout << "sys file not open" << std::endl; //add some error logic
+   
+    m_parameters_sys_stream.open(m_parameters_sys_file.c_str());
+    if(!m_parameters_sys_stream.is_open())
+      std::cout << "sys file not open" << std::endl; //add some error logic
+       
+
+    m_frequency_sys_stream >> freq;
+    std::cout << "Current PLL Output Frequency: " << freq << std::endl;
+    m_parameters_sys_stream << calculated_parameters_string << std::endl << std::flush;
+
+    sleep(2);//allow the frequency counter some time
+    m_frequency_sys_stream.clear();
+    m_frequency_sys_stream.seekg(0, std::ios::beg);
+    m_frequency_sys_stream >> freq;
+
+    status =(abs((atoi(freq.c_str())) - m_fout/1000) <= 2)?true:false;
+
+    (status)?std::cout << "Pass: ":std::cout << "Fail: ";
+    
+    std::cout << "New PLL Output Frequency: " << freq << std::endl;
+    std::cout << "Applied these PLL Parameters: " << calculated_parameters_string << std::endl;
+    
+    
+
+  }else{
+    std::cout << "The alt_pll_reconfig kernel module doesn't appear to be installed." << std::endl;
+    std::cout << "Install the driver and run the following command to modify the pll output frequency: " << std::endl
+	      << "echo \"" << calculated_parameters_string  << "\" > "
+    	      << m_parameters_sys_file << std::endl << std::endl;
+    std::cout << "Check the results by running the following command:" << std::endl;
+    std::cout << "cat " << m_frequency_sys_file << std::endl;
+    status = true;
+  }
+  
+    
+  return  status;
+}
 bool alt_28nm_pll_reconfig::is_supported_family(std::string family)
 {
   std::string fam = family;

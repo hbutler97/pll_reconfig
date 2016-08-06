@@ -33,13 +33,15 @@
 
 #include "alt_pll_reconfig_interface.h"
 #include <vector>
+#include <fstream>
+
 class alt_28nm_pll_reconfig : public virtual alt_pll_reconfig_interface
 {
  public:
   alt_28nm_pll_reconfig(void);
   alt_28nm_pll_reconfig(std::string family);
   ~alt_28nm_pll_reconfig(void);
-   void calculate_pll_parameters(unsigned int fref, unsigned int fout);
+   bool calculate_pll_parameters(void);
    bool is_supported_family(std::string family);
    bool check_fref(unsigned int fref);
    bool check_fout(unsigned int fout);
@@ -47,7 +49,9 @@ class alt_28nm_pll_reconfig : public virtual alt_pll_reconfig_interface
    std::string get_supported_families_string(void);
    void load_legal_values(void);
    //calling load here is kind of bad as the sequence necessary is not obvious
+   //I need to know the family and the speed grade prior to loading legal values
    void set_speedgrade(unsigned int speedgrade){m_speed_grade = speedgrade;load_legal_values();};
+   bool request_new_settings(void);
  private:
    std::vector<std::string> m_families;
    std::vector<unsigned int> m_speed_grades;
@@ -60,6 +64,11 @@ class alt_28nm_pll_reconfig : public virtual alt_pll_reconfig_interface
      m_speed_grades.push_back(7);
      m_speed_grades.push_back(8);
    }
+   std::string m_frequency_sys_file;
+   std::string m_parameters_sys_file;
+   std::ifstream m_frequency_sys_stream;
+   std::ofstream m_parameters_sys_stream;
+   unsigned int m_bandwidth, m_vco_div, m_c_pump;
  protected:
 };
 

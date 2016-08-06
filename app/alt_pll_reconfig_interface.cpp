@@ -14,3 +14,10 @@ alt_pll_reconfig_interface::~alt_pll_reconfig_interface(void)
 {
 }
 
+bool alt_pll_reconfig_interface::sys_file_exist(const std::string& file)
+{
+  struct stat buf;
+  return (stat(file.c_str(), &buf) != -1);
+}
+
+
