@@ -27,13 +27,40 @@
 * of California and by the laws of the United States of America.              *
 *                                                                             *
 ******************************************************************************/
+ 
+#ifndef __ALT_28NM_PLL_RECONFIG_H__
+#define __ALT_28NM_PLL_RECONFIG_H__
 
-#ifndef __ALT_PLL_RECONFIG_H__
-#define __ALT_PLL_RECONFIG_H__
-static const char* ALT_PLL_RECONFIG_VERSION = "0.1 Alpha\n";
-static const char  ALT_PLL_RECONFIG_DELIMITER = ' ';
-static const char* ALT_PLL_RECONFIG_USAGE = "Example Usage: \n\
-./alt_pll_reconfig -i 50000 -o 100000\n\
-Will Request a 100MHz clock with 50MHz PLL reference input clock\n";
+#include "alt_pll_reconfig_interface.h"
+#include <vector>
+class alt_28nm_pll_reconfig : public virtual alt_pll_reconfig_interface
+{
+ public:
+  alt_28nm_pll_reconfig(void);
+  alt_28nm_pll_reconfig(std::string family);
+  ~alt_28nm_pll_reconfig(void);
+   void calculate_pll_parameters(unsigned int fref, unsigned int fout);
+   bool is_supported_family(std::string family);
+   bool check_fref(unsigned int fref);
+   bool check_fout(unsigned int fout);
+   bool check_speedgrade(unsigned int speedgrade);
+   std::string get_supported_families_string(void);
+   void load_legal_values(void);
+   //calling load here is kind of bad as the sequence necessary is not obvious
+   void set_speedgrade(unsigned int speedgrade){m_speed_grade = speedgrade;load_legal_values();};
+ private:
+   std::vector<std::string> m_families;
+   std::vector<unsigned int> m_speed_grades;
+   
+   void init_family_list(void)
+   {
+     m_families.push_back("cyclonev");
 
-#endif /*__ALT_PLL_RECONFIG_H__*/
+     m_speed_grades.push_back(6);
+     m_speed_grades.push_back(7);
+     m_speed_grades.push_back(8);
+   }
+ protected:
+};
+
+#endif /*__ALT_28NM_PLL_RECONFIG_H__*/

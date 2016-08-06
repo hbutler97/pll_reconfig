@@ -1,24 +1,23 @@
 
-C_SRC := alt_pll_reconfig.cpp
-CFLAGS := -march=armv7-a -mfloat-abi=hard -mfpu=vfp3 -mthumb-interwork -mthumb -Og -g -feliminate-unused-debug-types -W -Wall -Werror -Itclap/ -Wwrite-strings -pedantic \
-
 CC := $(CROSS_COMPILE)g++
 
-ifeq ($(or $(COMSPEC),$(ComSpec)),)
-RM := rm -rf
-else
-RM := cs-rm -rf
-endif
+CFLAGS := -Itclap -march=armv7-a -mfloat-abi=hard -mfpu=vfp3 -mthumb-interwork -mthumb -Og -g -feliminate-unused-debug-types -W -Wall -Werror -Wwrite-strings -pedantic
+LDFLAGS=
 
-ELF ?= $(basename $(firstword $(C_SRC)))
+SOURCES=$(wildcard *.cpp)
+HEADERS=$(wildcard *.h)
 
-.PHONY: all
-all:  $(ELF)
+OBJECTS=$(SOURCES:.cpp=.o)
 
-.PHONY:
+EXECUTABLE=alt_pll_reconfig
+
+all: $(SOURCES) $(EXECUTABLE) 
+
+$(EXECUTABLE): $(OBJECTS)
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+
+.cpp.o: 
+	$(CC) -c $(CFLAGS) $< -o $@
 clean:
-	$(RM) $(OBJ) *.objdump *.map *.d $(ELF)
-
-$(ELF): $(C_SRC)
-	$(CC) $(CFLAGS) $< -o $@
-
+	rm *.o
+	rm $(EXECUTABLE)

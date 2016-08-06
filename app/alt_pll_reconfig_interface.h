@@ -28,12 +28,45 @@
 *                                                                             *
 ******************************************************************************/
 
-#ifndef __ALT_PLL_RECONFIG_H__
-#define __ALT_PLL_RECONFIG_H__
-static const char* ALT_PLL_RECONFIG_VERSION = "0.1 Alpha\n";
-static const char  ALT_PLL_RECONFIG_DELIMITER = ' ';
-static const char* ALT_PLL_RECONFIG_USAGE = "Example Usage: \n\
-./alt_pll_reconfig -i 50000 -o 100000\n\
-Will Request a 100MHz clock with 50MHz PLL reference input clock\n";
+#ifndef __ALT_PLL_RECONFIG_INTERFACE_H__
+#define __ALT_PLL_RECONFIG_INTERFACE_H__
+#include <string>
+class alt_pll_reconfig_interface
+{
+ public:
+  alt_pll_reconfig_interface(void);
+  alt_pll_reconfig_interface(std::string family);
+  virtual ~alt_pll_reconfig_interface(void);
+  virtual void calculate_pll_parameters(unsigned int fref, unsigned int fout) = 0;
+  virtual bool is_supported_family(std::string family) = 0;
+  virtual bool check_fref(unsigned int fref) = 0;
+  virtual bool check_fout(unsigned int fout) = 0;
+  virtual bool check_speedgrade(unsigned int speedgrade) = 0;
+  virtual std::string get_supported_families_string(void) = 0;
+  virtual void load_legal_values(void) = 0;
+  virtual void set_speedgrade(unsigned int speedgrade) = 0;
+  void set_family(std::string family){m_family = family;};
 
-#endif /*__ALT_PLL_RECONFIG_H__*/
+ private:
+ protected:
+  unsigned int m_speed_grade;
+  unsigned int m_fout_min;
+  unsigned int m_fout_max;
+  unsigned int m_fref_min;
+  unsigned int m_fref_max;
+  unsigned int m_fpfd_min;
+  unsigned int m_fpfd_max;
+  unsigned int m_fvco_max;
+  unsigned int m_fvco_min;
+  unsigned int m_c_min;
+  unsigned int m_c_max;
+  unsigned int m_n_min;
+  unsigned int m_n_max;
+  unsigned int m_m_min;
+  unsigned int m_m_max;
+
+
+
+  std::string m_family;
+};
+#endif /*__ALT_PLL_RECONFIG_INTERFACE_H__*/

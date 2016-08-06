@@ -28,12 +28,28 @@
 *                                                                             *
 ******************************************************************************/
 
-#ifndef __ALT_PLL_RECONFIG_H__
-#define __ALT_PLL_RECONFIG_H__
-static const char* ALT_PLL_RECONFIG_VERSION = "0.1 Alpha\n";
-static const char  ALT_PLL_RECONFIG_DELIMITER = ' ';
-static const char* ALT_PLL_RECONFIG_USAGE = "Example Usage: \n\
-./alt_pll_reconfig -i 50000 -o 100000\n\
-Will Request a 100MHz clock with 50MHz PLL reference input clock\n";
+#ifndef __ALT_PLL_RECONFIG_LIST_H__
+#define __ALT_PLL_RECONFIG_LIST_H__
 
-#endif /*__ALT_PLL_RECONFIG_H__*/
+#include "alt_pll_reconfig_interface.h"
+#include "alt_28nm_pll_reconfig.h"
+#include <vector>
+class alt_pll_reconfig_list
+{
+ public:
+  alt_pll_reconfig_list(void){init_list();};
+  std::vector<alt_pll_reconfig_interface*> *get_reconfig_list(void){return &m_pll_reconfig_list;};
+  ~alt_pll_reconfig_list(void);
+ private:
+  alt_pll_reconfig_list(const alt_pll_reconfig_list& engine_list);
+  std::vector<alt_pll_reconfig_interface*> m_pll_reconfig_list;
+  
+  void init_list(void)
+  {
+    m_pll_reconfig_list.push_back(new alt_28nm_pll_reconfig());
+  };
+ protected:
+};
+
+#endif /*__ALT_PLL_RECONFIG_LIST_H__*/
+
