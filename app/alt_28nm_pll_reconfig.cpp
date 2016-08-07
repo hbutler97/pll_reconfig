@@ -23,7 +23,6 @@ bool alt_28nm_pll_reconfig::calculate_pll_parameters(void)
   //add some protection to make sure all input has been validated
   //double check on vco_div
   bool status(false);
-  bool first_run(true);
   unsigned int fref_calculated(0);
   std::cout << "Finding Legal PLL parameters for:" << std::endl;
   std::cout << "Device Family: " << m_family << std::endl;
@@ -50,13 +49,12 @@ bool alt_28nm_pll_reconfig::calculate_pll_parameters(void)
 	}
       }
     }
-    //show some progress as this can take a long time for odd setups
-    if((c & 0x3F) == 0x3F){
-      if(first_run){
-	std::cout << "This could take awhile depending on your request" << std::endl << std::flush;
-	first_run = false;
-      }
-      std::cout << "=" << std::flush;
+    if(c == m_c_max && !status){
+      std::cout << "Can't synthesize requested clock: " << m_fout/1000 << std::endl;
+      unsigned int remainder = m_fout % 10000;
+      m_fout = m_fout + 10000 - remainder;
+      std::cout << "Rounding by 10KHz to requested value: " << m_fout/1000 << std::endl;
+      c = m_c_min;
     }
   }
   std::cout << std::endl;
@@ -178,11 +176,11 @@ void alt_28nm_pll_reconfig::load_legal_values(void)
   //insure speed grade is legal
   //really shouldn't bury legal values here
   m_c_min = 0x1;
-  m_c_max = 0xFFFF;
+  m_c_max = 512;
   m_n_min = 0x1;
-  m_n_max = 0xFFFF;
+  m_n_max = 512;
   m_m_min = 0x1;
-  m_m_max = 0xFFFF;
+  m_m_max = 512;
   m_fpfd_min = 5000000;
   m_fpfd_max = 325000000;
   m_fref_min = 25000000; //comeback and check this value
