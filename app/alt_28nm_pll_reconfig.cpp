@@ -24,20 +24,23 @@ bool alt_28nm_pll_reconfig::calculate_pll_parameters(void)
   //double check on vco_div
   bool status(false);
   unsigned int fref_calculated(0);
+  
   std::cout << "Finding Legal PLL parameters for:" << std::endl;
   std::cout << "Device Family: " << m_family << std::endl;
   std::cout << "Device Speed Grade: " << m_speed_grade << std::endl;
   std::cout << "PLL Ref Clock Frequency: " << m_fref/1000 << " KHz" << std::endl;
   std::cout << "Requested PLL Output Frequency: " << m_fout/1000 << " KHz" << std::endl;
  
-  for(unsigned int c = m_c_min; c <= m_c_max && !status; c++){
+  for(unsigned long long c = m_c_min; c <= m_c_max && !status; c++){
     m_fvco = m_fout * c;
-    if(m_fvco >= m_fvco_min && m_fvco <= m_fvco_max){
-      for(unsigned int m = m_m_min; m <= m_m_max && !status; m++){
+    if(m_fvco >= m_fvco_min && m_fvco <= m_fvco_max*2){
+      m_vco_div = (m_fvco > m_fvco_max)?1:0;
+      for(unsigned long long m = m_m_min; m <= m_m_max && !status; m++){
 	//got some integer devision here which could be a problem
-	m_fpfd = m_fvco/m;
+	//	m_fpfd = (m_vco_div == 1)?((m_fvco >> 1)/m):(m_fvco/m);
+	m_fpfd = (m_fvco/m);
 	if(m_fpfd >= m_fpfd_min && m_fpfd <= m_fpfd_max){
-	  for(unsigned int n = m_n_min; n < m_n_max && !status; n++){
+	  for(unsigned long long n = m_n_min; n < m_n_max && !status; n++){
 	    fref_calculated = m_fpfd * n;
 	    if(fref_calculated == m_fref){
 	      status = true;
@@ -49,14 +52,17 @@ bool alt_28nm_pll_reconfig::calculate_pll_parameters(void)
 	}
       }
     }
+    
     if(c == m_c_max && !status){
       std::cout << "Can't synthesize requested clock: " << m_fout/1000 << std::endl;
       unsigned int remainder = m_fout % 10000;
       m_fout = m_fout + 10000 - remainder;
+      
       std::cout << "Rounding by 10KHz to requested value: " << m_fout/1000 << std::endl;
       c = m_c_min;
     }
   }
+  
   std::cout << std::endl;
   if(status){
     m_m_bypass = (m_m_count == 1)?true:false;
@@ -129,8 +135,7 @@ bool alt_28nm_pll_reconfig::request_new_settings(void)
     
     std::cout << "New PLL Output Frequency: " << freq << std::endl;
     std::cout << "Applied these PLL Parameters: " << calculated_parameters_string << std::endl;
-    
-    
+
 
   }else{
     std::cout << "The alt_pll_reconfig kernel module doesn't appear to be installed." << std::endl;
@@ -176,33 +181,33 @@ void alt_28nm_pll_reconfig::load_legal_values(void)
   //insure speed grade is legal
   //really shouldn't bury legal values here
   m_c_min = 0x1;
-  m_c_max = 512;
+  m_c_max = 512UL;
   m_n_min = 0x1;
-  m_n_max = 512;
+  m_n_max = 512UL;
   m_m_min = 0x1;
-  m_m_max = 512;
-  m_fpfd_min = 5000000;
-  m_fpfd_max = 325000000;
-  m_fref_min = 25000000; //comeback and check this value
+  m_m_max = 512UL;
+  m_fpfd_min = 5000000UL;
+  m_fpfd_max = 325000000UL;
+  m_fref_min = 25000000UL; //comeback and check this value
   switch(m_speed_grade)
   {
   case 6:
-     m_fout_min = 1000;
-     m_fvco_max = 1600000000;
-     m_fout_max = 1600000000;
-     m_fref_max = 800000000;
+     m_fout_min = 1000UL;
+     m_fvco_max = 1600000000UL;
+     m_fout_max = 1600000000UL;
+     m_fref_max = 800000000UL;
     break;
   case 7:
-     m_fout_min = 1000;
-     m_fvco_max = 1600000000;
-     m_fout_max = 1340000000;
-     m_fref_max = 700000000;
+     m_fout_min = 1000UL;
+     m_fvco_max = 1600000000UL;
+     m_fout_max = 1340000000UL;
+     m_fref_max = 700000000UL;
     break;
   case 8:
-     m_fout_min = 1000;
-     m_fout_max = 1066000000;
-     m_fvco_max = 1300000000;
-     m_fref_max = 650000000;
+     m_fout_min = 1000UL;
+     m_fout_max = 1066000000UL;
+     m_fvco_max = 1300000000UL;
+     m_fref_max = 650000000UL;
 
     break;
   default:
