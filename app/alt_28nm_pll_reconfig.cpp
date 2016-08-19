@@ -11,6 +11,7 @@
 alt_28nm_pll_reconfig::alt_28nm_pll_reconfig(void):
   m_frequency_sys_file("/sys/bus/platform/drivers/dynamic_clock/frequency"),
   m_parameters_sys_file("/sys/bus/platform/drivers/dynamic_clock/parameters"),
+  m_lock_sys_file("/sys/bus/platform/drivers/dynamic_clock/lock_status"),
   m_bandwidth(7),
   m_vco_div(0),
   m_c_pump(1)
@@ -33,8 +34,8 @@ bool alt_28nm_pll_reconfig::calculate_pll_parameters(void)
  
   for(unsigned long long c = m_c_min; c <= m_c_max && !status; c++){
     m_fvco = m_fout * c;
-    if(m_fvco >= m_fvco_min && m_fvco <= m_fvco_max*2){
-      m_vco_div = (m_fvco > m_fvco_max)?1:0;
+    if(m_fvco >= m_fvco_min && m_fvco <= m_fvco_max){
+      //      m_vco_div = (m_fvco > m_fvco_max)?1:0;
       for(unsigned long long m = m_m_min; m <= m_m_max && !status; m++){
 	//got some integer devision here which could be a problem
 	//	m_fpfd = (m_vco_div == 1)?((m_fvco >> 1)/m):(m_fvco/m);
@@ -54,11 +55,11 @@ bool alt_28nm_pll_reconfig::calculate_pll_parameters(void)
     }
     
     if(c == m_c_max && !status){
-      std::cout << "Can't synthesize requested clock: " << m_fout/1000 << std::endl;
-      unsigned int remainder = m_fout % 10000;
-      m_fout = m_fout + 10000 - remainder;
-      
-      std::cout << "Rounding by 10KHz to requested value: " << m_fout/1000 << std::endl;
+      //      std::cout << "Can't synthesize requested clock: " << m_fout/1000 << std::endl;
+      unsigned int remainder = m_fout % 100;
+      m_fout = m_fout + 100 - remainder;
+      //      std::cout << "." << std::flush;
+      //      std::cout << "Rounding by 10KHz to requested value: " << m_fout/1000 << std::endl;
       c = m_c_min;
     }
   }
@@ -105,12 +106,15 @@ bool alt_28nm_pll_reconfig::request_new_settings(void)
 {
   bool status(true);
   std::string freq;
+  std::string lock_status;
   std::string calculated_parameters_string(std::to_string(m_m_high) + " " + std::to_string(m_m_low) + " " + std::to_string(m_m_bypass) + " " + std::to_string(m_m_odd)
 					   + " " + std::to_string(m_n_high) + " " + std::to_string(m_n_low) + " " + std::to_string(m_n_bypass) + " " + std::to_string(m_n_odd)
 					   + " " + std::to_string(m_c_high) + " " + std::to_string(m_c_low) + " " + std::to_string(m_c_bypass) + " " + std::to_string(m_c_odd)
 					   + " " + std::to_string(m_bandwidth) + " " + std::to_string(m_vco_div) + " " + std::to_string(m_c_pump));
 
-  if(sys_file_exist(m_frequency_sys_file) && sys_file_exist(m_parameters_sys_file)){
+  if(sys_file_exist(m_frequency_sys_file) &&
+     sys_file_exist(m_parameters_sys_file) &&
+     sys_file_exist(m_lock_sys_file)){
     m_frequency_sys_stream.open(m_frequency_sys_file.c_str());
     if(!m_frequency_sys_stream.is_open())
       std::cout << "sys file not open" << std::endl; //add some error logic
@@ -118,8 +122,11 @@ bool alt_28nm_pll_reconfig::request_new_settings(void)
     m_parameters_sys_stream.open(m_parameters_sys_file.c_str());
     if(!m_parameters_sys_stream.is_open())
       std::cout << "sys file not open" << std::endl; //add some error logic
-       
 
+    m_lock_sys_stream.open(m_lock_sys_file.c_str());
+    if(!m_lock_sys_stream.is_open())
+      std::cout << "sys file not open" << std::endl; //add some error logic
+    
     m_frequency_sys_stream >> freq;
     std::cout << "Current PLL Output Frequency: " << freq << std::endl;
     m_parameters_sys_stream << calculated_parameters_string << std::endl << std::flush;
@@ -128,13 +135,16 @@ bool alt_28nm_pll_reconfig::request_new_settings(void)
     m_frequency_sys_stream.clear();
     m_frequency_sys_stream.seekg(0, std::ios::beg);
     m_frequency_sys_stream >> freq;
-
-    status =(abs((atoi(freq.c_str())) - m_fout/1000) <= 2)?true:false;
+    
+    m_lock_sys_stream >> lock_status;
+    
+    status =(abs((atoi(freq.c_str())) - m_fout/1000) <= 2 && lock_status == "Locked")?true:false;
 
     (status)?std::cout << "Pass: ":std::cout << "Fail: ";
     
     std::cout << "New PLL Output Frequency: " << freq << std::endl;
     std::cout << "Applied these PLL Parameters: " << calculated_parameters_string << std::endl;
+    std::cout << "PLL Lock Status: " << lock_status << std::endl;
 
 
   }else{

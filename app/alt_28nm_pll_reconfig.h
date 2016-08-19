@@ -66,7 +66,9 @@ class alt_28nm_pll_reconfig : public virtual alt_pll_reconfig_interface
    }
    std::string m_frequency_sys_file;
    std::string m_parameters_sys_file;
+   std::string m_lock_sys_file;
    std::ifstream m_frequency_sys_stream;
+   std::ifstream m_lock_sys_stream;
    std::ofstream m_parameters_sys_stream;
    unsigned int m_bandwidth, m_vco_div, m_c_pump;
 

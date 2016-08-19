@@ -67,39 +67,6 @@ static ssize_t parameters_show(struct device_driver *driver, char *buf)
    spin_unlock_irqrestore(&g_clock_lock, flags);
 
 
-
-   /*   
-   pr_info(
-		    "m_high: %d\n"
-		    "m_low:  %d\n"
-		    "m_bypass: %d\n"
-		    "m_odd: %d\n"
-		    "n_high: %d\n"
-		    "n_low:  %d\n"
-		    "n_bypass: %d\n"
-		    "n_odd: %d\n"
-		    "c_high: %d\n"
-		    "c_low:  %d\n"
-		    "c_bypass: %d\n"
-		    "c_odd: %d\n"
-		    "bandwidth %d\n"
-		    "vco_dev %d\n"
-		    "c_pump %d\n"
-		    ,m_high
-		    ,m_low
-		    ,m_bypass
-		    ,m_odd
-		    ,n_high
-		    ,n_low
-		    ,n_bypass
-		    ,n_odd
-		    ,c_high
-		    ,c_low
-		    ,c_bypass
-		    ,c_odd
-		    ,bandwidth
-		    ,vco_div
-		    ,c_pump);*/
    return scnprintf(buf, PAGE_SIZE,
 		    "m_high: %d\n"
 		    "m_low:  %d\n"
@@ -258,6 +225,24 @@ static ssize_t frequency_show(struct device_driver *driver, char *buf)
 DRIVER_ATTR(frequency, (S_IRUGO), frequency_show, NULL);
 
 
+static ssize_t lock_status_show(struct device_driver *driver, char *buf)
+{
+  unsigned long flags;
+  uint32_t status;
+  char status_char[16];
+  
+  spin_lock_irqsave(&g_clock_lock, flags);
+  status = (ioread32(IOADDR_ALTERA_DYNAMIC_CLOCK_LOCK(g_dynamic_clock_base))
+	       >> ALTERA_DYNAMIC_CLOCK_LOCK_OFST) & ALTERA_DYNAMIC_CLOCK_LOCK_MSK;
+  spin_unlock_irqrestore(&g_clock_lock, flags);
+
+  (status == ALTERA_DYNAMIC_CLOCK_LOCKED)?strcpy(status_char, "Locked\n"):strcpy(status_char,"Not Locked\n");
+  return scnprintf(buf, PAGE_SIZE, "%s\n", status_char);
+}
+DRIVER_ATTR(lock_status, (S_IRUGO), lock_status_show, NULL);
+
+
+
 static ssize_t reconfig_status_show(struct device_driver *driver, char *buf)
 {
   unsigned long flags;
@@ -327,6 +312,11 @@ static int platform_probe(struct platform_device *pdev)
     }*/
 
 
+  ret_val = driver_create_file(&the_platform_driver.driver,
+			       &driver_attr_lock_status);
+  if (ret_val != 0) {
+    pr_err("failed to create pll lock status sysfs entry");
+  }
   up(&g_dev_probe_sem);
   pr_info("exit platform_probe\n");
   return 0;
